@@ -1,0 +1,20 @@
+- hosts: localhost
+  name: "ONTAP Health: Volume Utilisation"
+  vars:
+    hostname: 10.128.113.70
+    username: admin
+    password: Netapp01
+  tasks:
+  - uri: url="https://{{ hostname }}/api/storage/volumes" url_username="{{ username }}" url_password="{{ password }}"
+         method=GET validate_certs=no force_basic_auth=yes use_proxy=no
+    register: volumes_ids
+  - uri: url="https://{{ hostname }}/api/storage/volumes/{{ item.uuid }}" url_username="{{ username}}" url_password="{{ password }}"
+         method=GET validate_certs=no force_basic_auth=yes use_proxy=no
+    loop: "{{ volumes_ids.json.records }}"
+    register: volumes_details
+  - assert:
+      that: item.json.space.used / item.json.space.size < 0.90
+      fail_msg: "volumes {{ item.json.name }} utilisation is greater than 90%"
+      quiet: true
+    loop: "{{ volumes_details.results }}"
+    any_errors_fatal: no
